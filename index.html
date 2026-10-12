@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Megamania Moderno com Cofre Secreto</title>
+    <!-- Tailwind CSS para o Cofre -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para ícones do Cofre -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background: #020617;
+            font-family: monospace;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #ffffff;
+        }
+        .arcade-cabinet {
+            background: #0f172a;
+            border: 2px solid rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 35px rgba(168, 85, 247, 0.3);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 440px;
+            height: 98vh;
+            max-height: 750px;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            position: relative;
+        }
+        .top-bezel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #020617;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 8px;
+        }
+        .status-badge {
+            font-size: 10px;
+            font-weight: bold;
+            color: #22d3ee;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #22d3ee;
+            box-shadow: 0 0 8px #22d3ee;
+        }
+        .btn-purple-glow {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: 1px solid #f472b6;
+            color: #ffffff;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 6px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            animation: purpleGlowPulse 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes purpleGlowPulse {
+            0% { transform: scale(1); box-shadow: 0 0 8px rgba(168, 85, 247, 0.6); }
+            100% { transform: scale(1.06); box-shadow: 0 0 20px rgba(236, 72, 153, 0.9); }
+        }
+        .screen-container {
+            flex: 1;
+            position: relative;
+            background: #000000;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #000000;
+        }
+        .controls-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+            background: #020617;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .dir-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-ctrl {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #38bdf8;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .btn-fire {
+            background: linear-gradient(135deg, #e11d48, #9333ea);
+            border: 1px solid #fda4af;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* Estilos específicos para o Cofre Integrado */
+        #secretVaultOverlay {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f8fafc;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- GABINETE DO JOGO -->
+    <div id="arcadeCabinet" class="arcade-cabinet">
+        <div class="top-bezel">
+            <div class="status-badge">
+                <div class="dot"></div>
+                <span>ATARI 2600</span>
+            </div>
+            <button id="btn-exit" class="btn-purple-glow">✖ SAIR</button>
+            <div class="status-badge" style="color:#f472b6;">
+                <span id="level-pill">FASE 1</span>
+            </div>
+        </div>
+        <div class="screen-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        <div class="controls-panel">
+            <div class="dir-buttons">
+                <button id="btn-left" class="btn-ctrl">◀</button>
+                <button id="btn-right" class="btn-ctrl">▶</button>
+            </div>
+            <button id="btn-fire" class="btn-fire">FOGO</button>
+        </div>
+    </div>
+
+    <!-- TELA DO COFRE SECRETO (OCULTA POR PADRÃO) -->
+    <div id="secretVaultOverlay" class="hidden absolute inset-0 z-50 flex flex-col justify-between selection:bg-amber-500 selection:text-black">
+        <div id="app" class="flex-1 flex flex-col max-w-md mx-auto w-full p-4 justify-center">
+            
+            <!-- TELA 1: BLOQUEIO POR PIN -->
+            <div id="pinScreen" class="flex flex-col items-center justify-center py-10">
+                <div class="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/30 mb-6 shadow-lg shadow-amber-500/5">
+                    <i class="fa-solid fa-lock text-3xl text-amber-400"></i>
+                </div>
+                
+                <h1 class="text-2xl font-bold tracking-tight text-white mb-2">Cofre Seguro</h1>
+                <p class="text-slate-400 text-sm mb-8 text-center">Digite o PIN de 4 dígitos para desbloquear<br><span class="text-xs text-amber-400/85 font-medium">(PIN Padrão: 1234)</span></p>
+
+                <!-- Indicadores de PIN -->
+                <div class="flex space-x-4 mb-10">
+                    <div id="dot-0" class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200"></div>
+                    <div id="dot-1" class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200"></div>
+                    <div id="dot-2" class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200"></div>
+                    <div id="dot-3" class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200"></div>
+                </div>
+
+                <!-- Teclado Numérico -->
+                <div class="grid grid-cols-3 gap-4 w-full max-w-[280px]">
+                    <button onclick="pressKey('1')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">1</button>
+                    <button onclick="pressKey('2')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">2</button>
+                    <button onclick="pressKey('3')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">3</button>
+                    
+                    <button onclick="pressKey('4')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">4</button>
+                    <button onclick="pressKey('5')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">5</button>
+                    <button onclick="pressKey('6')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">6</button>
+                    
+                    <button onclick="pressKey('7')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">7</button>
+                    <button onclick="pressKey('8')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">8</button>
+                    <button onclick="pressKey('9')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">9</button>
+                    
+                    <div class="flex items-center justify-center"></div>
+                    <button onclick="pressKey('0')" class="h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 transition-all text-xl font-semibold text-white flex items-center justify-center shadow-md">0</button>
+                    <button onclick="pressDelete()" class="h-16 rounded-2xl bg-slate-900/60 hover:bg-slate-800 active:scale-95 transition-all text-lg text-slate-400 hover:text-white flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
+                </div>
+
+                <!-- Alerta visual de erro -->
+                <div id="pinError" class="mt-6 text-rose-400 text-sm font-medium opacity-0 transition-opacity">
+                    PIN incorreto! Tente 1234
+                </div>
+            </div>
+
+            <!-- TELA 2: PAINEL DO COFRE (OCULTO INICIALMENTE) -->
+            <div id="vaultScreen" class="hidden flex-1 flex flex-col h-full py-4">
+                
+                <!-- Cabeçalho -->
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold flex items-center gap-2 text-white">
+                            <i class="fa-solid fa-vault text-amber-400"></i> Cofre Privado
+                        </h2>
+                        <p id="mediaCountText" class="text-xs text-slate-400 mt-0.5">0 arquivos armazenados com segurança</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="lockVault()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white p-2.5 rounded-xl border border-slate-700/50 transition-all shadow-sm" title="Trancar Cofre">
+                            <i class="fa-solid fa-lock text-sm"></i>
+                        </button>
+                        <label class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2.5 rounded-xl cursor-pointer transition-all shadow-lg shadow-amber-500/10 flex items-center gap-2 text-sm active:scale-95">
+                            <i class="fa-solid fa-plus text-xs"></i> Adicionar
+                            <input type="file" id="fileInput" accept="image/*,video/*" multiple class="hidden" onchange="handleFiles(this.files)">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Conteúdo / Grade de Arquivos -->
+                <div id="vaultContent" class="flex-1 overflow-y-auto no-scrollbar pb-20">
+                    <!-- Estado Vazio -->
+                    <div id="emptyState" class="flex flex-col items-center justify-center py-20 text-center">
+                        <div class="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-500 mb-4 border border-slate-800">
+                            <i class="fa-regular fa-folder-open text-2xl"></i>
+                        </div>
+                        <p class="text-slate-300 font-medium text-sm">O cofre está vazio</p>
+                        <p class="text-slate-500 text-xs mt-1">Toque em "Adicionar" para guardar fotos ou vídeos.</p>
+                    </div>
+
+                    <!-- Grid de Mídias -->
+                    <div id="mediaGrid" class="grid grid-cols-3 gap-2.5 hidden">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE VISUALIZAÇÃO EM TELA CHEIA DO COFRE -->
+    <div id="viewerModal" class="fixed inset-0 bg-black/95 z-[60] hidden flex flex-col justify-between p-4 backdrop-blur-md">
+        <div class="flex items-center justify-between z-10">
+            <span id="viewerDate" class="text-xs text-slate-400 font-medium">--/--/----</span>
+            <div class="flex items-center gap-2">
+                <button onclick="deleteCurrentMedia()" class="w-10 h-10 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 flex items-center justify-center transition-all border border-rose-500/20">
+                    <i class="fa-solid fa-trash-can text-sm"></i>
+                </button>
+                <button onclick="closeViewer()" class="w-10 h-10 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all border border-slate-700">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div id="viewerContainer" class="flex-1 flex items-center justify-center my-4 overflow-hidden relative"></div>
+        <div class="text-center pb-2">
+            <span id="viewerTypeIndicator" class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Foto Protegida</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const LOGICAL_WIDTH = 320;
+        const LOGICAL_HEIGHT = 440;
+        canvas.width = LOGICAL_WIDTH;
+        canvas.height = LOGICAL_HEIGHT;
+
+        // Gerenciador de Áudio Retrô (Web Audio API)
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        const soundEffects = {
+            shoot() {
+                if (!audioCtx) return;
+                try {
+                    let osc = audioCtx.createOscillator();
+                    let gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } catch(e) {}
+            },
+            hit() {
+                if (!audioCtx) return;
+                try {
+                    let osc = audioCtx.createOscillator();
+                    let gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.15);
+                } catch(e) {}
+            },
+            explosion() {
+                if (!audioCtx) return;
+                try {
+                    let bufferSize = audioCtx.sampleRate * 0.2;
+                    let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    let data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    let noise = audioCtx.createBufferSource();
+                    noise.buffer = buffer;
+                    let filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+                    let gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    noise.start();
+                } catch(e) {}
+            },
+            levelUp() {
+                if (!audioCtx) return;
+                try {
+                    let notes = [300, 400, 500, 700];
+                    notes.forEach((freq, index) => {
+                        let osc = audioCtx.createOscillator();
+                        let gain = audioCtx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.08);
+                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime + index * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + index * 0.08 + 0.08);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(audioCtx.currentTime + index * 0.08);
+                        osc.stop(audioCtx.currentTime + index * 0.08 + 0.08);
+                    });
+                } catch(e) {}
+            }
+        };
+
+        let gameState = 'TITLE';
+        let score = 80;
+        let lives = 3;
+        let energy = 100;
+        let currentLevel = 1;
+        let transitionTimer = 0;
+        let animPulse = 0;
+
+        const player = { x: LOGICAL_WIDTH / 2 - 8, y: 330, width: 16, height: 16, speed: 4 };
+        let bullets = [];
+        let enemies = [];
+        let enemyBullets = [];
+        let enemyDirection = 1;
+        const keys = {};
+
+        function drawHamburger(x, y, cfg) {
+            ctx.fillStyle = cfg.colorPrimary;
+            ctx.fillRect(x + 2, y, 14, 3);
+            ctx.fillStyle = '#ff3333';
+            ctx.fillRect(x, y + 3, 18, 2);
+            ctx.fillStyle = cfg.colorSecondary;
+            ctx.fillRect(x + 2, y + 5, 14, 2);
+            ctx.fillStyle = cfg.colorPrimary;
+            ctx.fillRect(x + 2, y + 7, 14, 3);
+        }
+        function drawDice(x, y, cfg) {
+            ctx.fillStyle = cfg.colorPrimary;
+            ctx.fillRect(x, y, 16, 12);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(x + 3, y + 3, 2, 2);
+            ctx.fillRect(x + 11, y + 3, 2, 2);
+            ctx.fillRect(x + 7, y + 5, 2, 2);
+        }
+        function drawBowtie(x, y, cfg) {
+            ctx.fillStyle = cfg.colorPrimary;
+            ctx.fillRect(x, y, 5, 10);
+            ctx.fillRect(x + 13, y, 5, 10);
+            ctx.fillRect(x + 5, y + 3, 8, 4);
+        }
+        function drawRacecar(x, y, cfg) {
+            ctx.fillStyle = cfg.colorPrimary;
+            ctx.fillRect(x + 4, y, 10, 4);
+            ctx.fillStyle = cfg.colorSecondary;
+            ctx.fillRect(x, y + 4, 18, 6);
+        }
+        function drawIron(x, y, cfg) {
+            ctx.fillStyle = cfg.colorPrimary;
+            ctx.fillRect(x + 2, y, 14, 3);
+            ctx.fillStyle = cfg.colorSecondary;
+            ctx.fillRect(x, y + 3, 18, 6);
+        }
+
+        const LEVEL_CONFIGS = [
+            { name: 'FASE 1: HAMBÚRGUERES', colorPrimary: '#ff77ff', colorSecondary: '#cc44ff', speed: 1.0, shoot: 0.015, points: 20, rows: 4, cols: 7, draw: drawHamburger },
+            { name: 'FASE 2: DADOS CÓSMICOS', colorPrimary: '#55ff55', colorSecondary: '#00cc00', speed: 1.3, shoot: 0.02, points: 30, rows: 4, cols: 7, draw: drawDice },
+            { name: 'FASE 3: GRAVATAS', colorPrimary: '#ffff44', colorSecondary: '#ff9900', speed: 1.6, shoot: 0.025, points: 40, rows: 4, cols: 8, draw: drawBowtie },
+            { name: 'FASE 4: CARROS', colorPrimary: '#00ffff', colorSecondary: '#0088ff', speed: 1.9, shoot: 0.03, points: 50, rows: 4, cols: 8, draw: drawRacecar },
+            { name: 'FASE 5: FERROS', colorPrimary: '#ff3333', colorSecondary: '#ff9933', speed: 2.2, shoot: 0.035, points: 80, rows: 5, cols: 8, draw: drawIron }
+        ];
+
+        window.addEventListener('keydown', e => {
+            initAudio();
+            keys[e.code] = true;
+            if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') {
+                if (e.code === 'Space' || e.code === 'Enter') startGame();
+            } else if (e.code === 'Space') {
+                shootBullet();
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        canvas.addEventListener('click', () => {
+            initAudio();
+            if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') startGame();
+            else if (gameState === 'PLAYING') shootBullet();
+        });
+
+        document.getElementById('btn-left').addEventListener('touchstart', (e) => { initAudio(); keys['ArrowLeft'] = true; e.preventDefault(); });
+        document.getElementById('btn-left').addEventListener('touchend', (e) => { keys['ArrowLeft'] = false; e.preventDefault(); });
+        document.getElementById('btn-right').addEventListener('touchstart', (e) => { initAudio(); keys['ArrowRight'] = true; e.preventDefault(); });
+        document.getElementById('btn-right').addEventListener('touchend', (e) => { keys['ArrowRight'] = false; e.preventDefault(); });
+        document.getElementById('btn-fire').addEventListener('click', () => {
+            initAudio();
+            if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') startGame();
+            else if (gameState === 'PLAYING') shootBullet();
+        });
+
+        // Lógica de ativação do Cofre Secreto (12 cliques para entrar, 1 para sair/fechar)
+        let exitClickCount = 0;
+        document.getElementById('btn-exit').addEventListener('click', () => {
+            const vaultOverlay = document.getElementById('secretVaultOverlay');
+            if (vaultOverlay.classList.contains('hidden')) {
+                exitClickCount++;
+                if (exitClickCount >= 12) {
+                    exitClickCount = 0;
+                    vaultOverlay.classList.remove('hidden');
+                }
+            } else {
+                // 1 clique para sair do cofre e voltar ao jogo
+                exitClickCount = 0;
+                vaultOverlay.classList.add('hidden');
+            }
+        });
+
+        function initLevel(lvlIndex) {
+            enemies = [];
+            const cfg = LEVEL_CONFIGS[lvlIndex - 1];
+            document.getElementById('level-pill').textContent = `FASE ${lvlIndex}`;
+            const spacingX = Math.floor((LOGICAL_WIDTH - 50) / cfg.cols);
+            for (let r = 0; r < cfg.rows; r++) {
+                for (let c = 0; c < cfg.cols; c++) {
+                    enemies.push({ x: 25 + c * spacingX, y: 35 + r * 22, width: 18, height: 12, alive: true });
+                }
+            }
+            enemyDirection = 1;
+            bullets = [];
+            enemyBullets = [];
+            energy = 100;
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            currentLevel = 1;
+            player.x = LOGICAL_WIDTH / 2 - 8;
+            initLevel(currentLevel);
+            gameState = 'LEVEL_TRANSITION';
+            transitionTimer = 80;
+            soundEffects.levelUp();
+        }
+
+        function shootBullet() {
+            if (bullets.length < 3) {
+                bullets.push({ x: player.x + 7, y: player.y - 4, width: 2, height: 10, speed: 7 });
+                soundEffects.shoot();
+            }
+        }
+
+        function update() {
+            animPulse = (animPulse + 0.05) % (Math.PI * 2);
+            if (gameState === 'LEVEL_TRANSITION') {
+                transitionTimer--;
+                if (transitionTimer <= 0) gameState = 'PLAYING';
+                return;
+            }
+            if (gameState !== 'PLAYING') return;
+
+            if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+            if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+            if (player.x < 10) player.x = 10;
+            if (player.x > LOGICAL_WIDTH - 26) player.x = LOGICAL_WIDTH - 26;
+
+            energy -= 0.035;
+            if (energy <= 0) { energy = 0; playerHit(); }
+
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= bullets[i].speed;
+                if (bullets[i].y < 0) bullets.splice(i, 1);
+            }
+
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                enemyBullets[i].y += enemyBullets[i].speed;
+                if (enemyBullets[i].x < player.x + player.width && enemyBullets[i].x + enemyBullets[i].width > player.x &&
+                    enemyBullets[i].y < player.y + player.height && enemyBullets[i].y + enemyBullets[i].height > player.y) {
+                    enemyBullets.splice(i, 1);
+                    playerHit();
+                    continue;
+                }
+                if (enemyBullets[i].y > 340) enemyBullets.splice(i, 1);
+            }
+
+            const cfg = LEVEL_CONFIGS[currentLevel - 1];
+            let hitEdge = false, aliveCount = 0;
+
+            enemies.forEach(en => {
+                if (!en.alive) return;
+                aliveCount++;
+                en.x += 0.5 * enemyDirection * cfg.speed;
+                if (en.x <= 12 || en.x >= LOGICAL_WIDTH - 30) hitEdge = true;
+                if (en.y >= 310) playerHit();
+            });
+
+            if (hitEdge) {
+                enemyDirection *= -1;
+                enemies.forEach(en => { en.y += 8; });
+            }
+
+            if (Math.random() < cfg.shoot) {
+                const aliveEnemies = enemies.filter(e => e.alive);
+                if (aliveEnemies.length > 0) {
+                    const shooter = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+                    enemyBullets.push({ x: shooter.x + 8, y: shooter.y + 12, width: 3, height: 8, speed: 3 });
+                }
+            }
+
+            if (aliveCount === 0) {
+                score += 300;
+                if (currentLevel < 5) {
+                    currentLevel++;
+                    initLevel(currentLevel);
+                    gameState = 'LEVEL_TRANSITION';
+                    transitionTimer = 80;
+                    soundEffects.levelUp();
+                } else {
+                    gameState = 'VICTORY';
+                    soundEffects.levelUp();
+                }
+            }
+
+            for (let b = bullets.length - 1; b >= 0; b--) {
+                for (let e = 0; e < enemies.length; e++) {
+                    let en = enemies[e];
+                    if (en.alive && bullets[b] &&
+                        bullets[b].x < en.x + en.width && bullets[b].x + bullets[b].width > en.x &&
+                        bullets[b].y < en.y + en.height && bullets[b].y + bullets[b].height > en.y) {
+                        en.alive = false;
+                        bullets.splice(b, 1);
+                        score += cfg.points;
+                        energy = Math.min(100, energy + 6);
+                        soundEffects.explosion();
+                        break;
+                    }
+                }
+            }
+        }
+
+        function playerHit() {
+            lives--;
+            energy = 100;
+            player.x = LOGICAL_WIDTH / 2 - 8;
+            soundEffects.hit();
+            if (lives < 0) gameState = 'GAMEOVER';
+        }
+
+        function drawShip(x, y) {
+            ctx.fillStyle = '#7777ff';
+            ctx.fillRect(x + 6, y, 4, 4);
+            ctx.fillRect(x + 2, y + 4, 12, 4);
+            ctx.fillRect(x, y + 8, 16, 4);
+            ctx.fillRect(x + 2, y + 12, 4, 4);
+            ctx.fillRect(x + 10, y + 12, 4, 4);
+        }
+
+        function drawHUD() {
+            const hudTop = 360;
+            ctx.fillStyle = '#aaaaaa';
+            ctx.fillRect(0, hudTop, LOGICAL_WIDTH, 80);
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 12px monospace';
+            ctx.fillText('ENERGY', 20, hudTop + 18);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(80, hudTop + 8, 200, 12);
+            ctx.fillStyle = energy > 25 ? '#ffcc00' : '#ff3333';
+            ctx.fillRect(82, hudTop + 10, Math.max(0, (energy / 100) * 196), 8);
+            for (let i = 0; i < lives; i++) drawShip(80 + i * 22, hudTop + 26);
+            ctx.fillStyle = '#0000aa';
+            ctx.font = 'bold 22px monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText(score.toString(), LOGICAL_WIDTH - 25, hudTop + 48);
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#ff7700';
+            ctx.font = 'bold 16px monospace';
+            ctx.fillText('ACTIVISION', 20, hudTop + 70);
+        }
+
+        function render() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+            if (gameState === 'TITLE') {
+                ctx.fillStyle = '#ff0077';
+                ctx.font = 'bold 20px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('MEGAMANIA', LOGICAL_WIDTH / 2, 80);
+                ctx.fillStyle = '#00ffff';
+                ctx.font = 'bold 14px monospace';
+                ctx.fillText('MODERNO', LOGICAL_WIDTH / 2, 110);
+                drawShip(LOGICAL_WIDTH / 2 - 8, 180);
+                if (Math.sin(animPulse * 2) > 0) {
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.font = 'bold 13px monospace';
+                    ctx.fillText('PRESS START TO BEGIN', LOGICAL_WIDTH / 2, 280);
+                }
+                ctx.fillStyle = '#aaaaaa';
+                ctx.font = '10px monospace';
+                ctx.fillText('CLIQUE PARA COMEÇAR', LOGICAL_WIDTH / 2, 320);
+                ctx.textAlign = 'left';
+                return;
+            }
+
+            const cfg = LEVEL_CONFIGS[currentLevel - 1];
+            enemies.forEach(en => { if (en.alive) cfg.draw(en.x, en.y, cfg); });
+            ctx.fillStyle = '#ff00ff';
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
+            ctx.fillStyle = '#ff3333';
+            enemyBullets.forEach(eb => ctx.fillRect(eb.x, eb.y, eb.width, eb.height));
+            drawShip(player.x, player.y);
+            drawHUD();
+
+            if (gameState === 'LEVEL_TRANSITION') {
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillRect(0, 150, LOGICAL_WIDTH, 80);
+                ctx.fillStyle = '#00ffff';
+                ctx.font = 'bold 15px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(cfg.name, LOGICAL_WIDTH / 2, 195);
+                ctx.textAlign = 'left';
+            } else if (gameState === 'GAMEOVER') {
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                ctx.fillRect(0, 140, LOGICAL_WIDTH, 100);
+                ctx.fillStyle = '#ff3333';
+                ctx.font = 'bold 22px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', LOGICAL_WIDTH / 2, 185);
+                ctx.textAlign = 'left';
+            } else if (gameState === 'VICTORY') {
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                ctx.fillRect(0, 120, LOGICAL_WIDTH, 130);
+                ctx.fillStyle = '#55ff55';
+                ctx.font = 'bold 20px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('PARABÉNS!', LOGICAL_WIDTH / 2, 170);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        requestAnimationFrame(gameLoop);
+
+        // Lógica do Cofre Secreto (IndexedDB + PIN)
+        let enteredPin = "";
+        const correctPin = "1234";
+        let mediaList = [];
+        let currentViewingId = null;
+        const DB_NAME = "CofreSeguroDB";
+        const STORE_NAME = "vault_media";
+        let db = null;
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    loadMediaFromDB();
+                    resolve(db);
+                };
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        database.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                    }
+                };
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initDB().catch(err => console.error("Erro ao iniciar DB do cofre:", err));
+        });
+
+        function pressKey(digit) {
+            if (enteredPin.length < 4) {
+                enteredPin += digit;
+                updatePinDots();
+                if (enteredPin.length === 4) {
+                    setTimeout(verifyPin, 150);
+                }
+            }
+        }
+
+        function pressDelete() {
+            if (enteredPin.length > 0) {
+                enteredPin = enteredPin.slice(0, -1);
+                updatePinDots();
+                hidePinError();
+            }
+        }
+
+        function updatePinDots() {
+            for (let i = 0; i < 4; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i < enteredPin.length) {
+                    dot.classList.add('bg-amber-400', 'border-amber-400');
+                    dot.classList.remove('border-slate-600');
+                } else {
+                    dot.classList.remove('bg-amber-400', 'border-amber-400');
+                    dot.classList.add('border-slate-600');
+                }
+            }
+        }
+
+        function verifyPin() {
+            if (enteredPin === correctPin) {
+                document.getElementById('pinScreen').classList.add('hidden');
+                document.getElementById('vaultScreen').classList.remove('hidden');
+                enteredPin = "";
+                updatePinDots();
+                hidePinError();
+            } else {
+                const errorEl = document.getElementById('pinError');
+                errorEl.style.opacity = '1';
+                shakePinDots();
+                enteredPin = "";
+                updatePinDots();
+            }
+        }
+
+        function hidePinError() {
+            document.getElementById('pinError').style.opacity = '0';
+        }
+
+        function shakePinDots() {
+            const dotsContainer = document.querySelector('#pinScreen .flex.space-x-4');
+            dotsContainer.classList.add('animate-bounce');
+            setTimeout(() => dotsContainer.classList.remove('animate-bounce'), 400);
+        }
+
+        function lockVault() {
+            document.getElementById('vaultScreen').classList.add('hidden');
+            document.getElementById('pinScreen').classList.remove('hidden');
+            enteredPin = "";
+            updatePinDots();
+        }
+
+        function saveMediaToDB(fileData, fileType, fileName) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const item = {
+                    data: fileData,
+                    type: fileType,
+                    name: fileName,
+                    date: new Date().toLocaleDateString('pt-BR')
+                };
+                const request = store.add(item);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        function loadMediaFromDB() {
+            if (!db) return;
+            const transaction = db.transaction([STORE_NAME], "readonly");
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+            request.onsuccess = () => {
+                mediaList = request.result;
+                renderMediaGrid();
+            };
+        }
+
+        function deleteMediaFromDB(id) {
+            const transaction = db.transaction([STORE_NAME], "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(id);
+            request.onsuccess = () => {
+                closeViewer();
+                loadMediaFromDB();
+            };
+        }
+
+        async function handleFiles(files) {
+            for (let file of files) {
+                const isVideo = file.type.startsWith('video');
+                const isImage = file.type.startsWith('image');
+                if (isImage || isVideo) {
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        await saveMediaToDB(e.target.result, isVideo ? 'video' : 'image', file.name);
+                        loadMediaFromDB();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+            document.getElementById('fileInput').value = '';
+        }
+
+        function renderMediaGrid() {
+            const grid = document.getElementById('mediaGrid');
+            const emptyState = document.getElementById('emptyState');
+            const countText = document.getElementById('mediaCountText');
+
+            countText.innerText = `${mediaList.length} arquivo${mediaList.length === 1 ? '' : 's'} armazenado${mediaList.length === 1 ? '' : 's'}`;
+
+            if (mediaList.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.classList.remove('hidden');
+            grid.innerHTML = '';
+
+            const sortedList = [...mediaList].reverse();
+            sortedList.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = "relative aspect-square bg-slate-900 rounded-xl overflow-hidden border border-slate-800/80 cursor-pointer group active:scale-95 transition-all";
+                card.onclick = () => openViewer(item.id);
+
+                if (item.type === 'video') {
+                    card.innerHTML = `
+                        <div class="w-full h-full flex items-center justify-center bg-slate-950 relative">
+                            <video src="${item.data}" class="w-full h-full object-cover opacity-75 group-hover:opacity-100 transition-opacity pointer-events-none"></video>
+                            <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <div class="w-9 h-9 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md pl-0.5">
+                                    <i class="fa-solid fa-play text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <img src="${item.data}" alt="Foto protegida" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none">
+                    `;
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function openViewer(id) {
+            currentViewingId = id;
+            const item = mediaList.find(m => m.id === id);
+            if (!item) return;
+
+            const modal = document.getElementById('viewerModal');
+            const container = document.getElementById('viewerContainer');
+            const dateEl = document.getElementById('viewerDate');
+            const typeIndicator = document.getElementById('viewerTypeIndicator');
+
+            dateEl.innerText = item.date;
+            container.innerHTML = '';
+
+            if (item.type === 'video') {
+                typeIndicator.innerText = "Vídeo Seguro";
+                container.innerHTML = `<video src="${item.data}" controls autoplay class="max-h-full max-w-full rounded-lg shadow-2xl outline-none"></video>`;
+            } else {
+                typeIndicator.innerText = "Foto Segura";
+                container.innerHTML = `<div class="w-full h-full flex items-center justify-center overflow-auto p-2"><img src="${item.data}" alt="Zoom Foto" class="max-h-full max-w-full object-contain rounded-lg shadow-2xl transition-transform duration-200 select-none"></div>`;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeViewer() {
+            const modal = document.getElementById('viewerModal');
+            const container = document.getElementById('viewerContainer');
+            const video = container.querySelector('video');
+            if (video) video.pause();
+            modal.classList.add('hidden');
+            currentViewingId = null;
+        }
+
+        function deleteCurrentMedia() {
+            if (currentViewingId !== null) {
+                if (confirm("Tem certeza que deseja excluir permanentemente este arquivo do cofre?")) {
+                    deleteMediaFromDB(currentViewingId);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
